@@ -28,5 +28,4 @@ This is the backend server for the Music Mind application, utilizing the Spotify
 - **GET /login**: Initiates Spotify OAuth flow.
 - **GET /callback**: Handles the callback from Spotify and retrieves the access token.
 
-## Note on Missing Files
-The `.env` file is intentionally excluded from this repository (via `.gitignore`) to keep your secrets safe. You must create the `.env` file locally as described above.
+
