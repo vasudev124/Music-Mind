@@ -29,4 +29,4 @@ This is the backend server for the Music Mind application, utilizing the Spotify
 - **GET /callback**: Handles the callback from Spotify and retrieves the access token.
 
 ## Note on Missing Files
-The `node_modules` folder and `.env` file are intentionally excluded from this repository (via `.gitignore`) to keep the codebase clean and secure. You must create the `.env` file locally as described above.
+The `.env` file is intentionally excluded from this repository (via `.gitignore`) to keep your secrets safe. You must create the `.env` file locally as described above.
