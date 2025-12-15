@@ -1,0 +1,49 @@
+.vinyl-container {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 100vw;
+    height: 100vh;
+    z-index: 1;
+    pointer-events: none;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    perspective: 1200px;
+    /* Slightly flatter perspective */
+}
+
+.vinyl-image {
+    /* Massive scale - covering mostly everything, edges cut off */
+    /* User requested even bigger than before */
+    height: 220vh;
+    width: auto;
+    opacity: 0.3;
+
+    mix-blend-mode: screen;
+    filter: contrast(1.1) brightness(1.1);
+
+    /* Natural Tilt - looks like an ellipse */
+    /* We maintain this basic perspective and breathe slightly */
+    animation: natural-breathing 12s ease-in-out infinite alternate;
+}
+
+@keyframes natural-breathing {
+    from {
+        /* Tilted back 40 degrees, slight diagonal */
+        transform: rotateX(40deg) rotateZ(-15deg) scale(1.0);
+    }
+
+    to {
+        /* Gentle movement */
+        transform: rotateX(45deg) rotateZ(-10deg) scale(1.05);
+    }
+}
+
+@media (max-width: 768px) {
+    .vinyl-image {
+        height: 120vh;
+    }
+}
