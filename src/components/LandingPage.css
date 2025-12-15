@@ -1,0 +1,103 @@
+.landing-container {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    overflow: hidden;
+    /* Prevent vinyl from causing scrollbar */
+    background: var(--bg-primary);
+    /* Fallback */
+}
+
+/* Ensure content floats above the background vinyl */
+.hero-content {
+    text-align: center;
+    z-index: 10;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.hero-title {
+    font-size: 4rem;
+    font-weight: 800;
+    letter-spacing: -2px;
+    background: linear-gradient(to right, white, var(--text-secondary));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    margin-bottom: 1rem;
+    min-height: 1.2em;
+    /* Prevent layout shift */
+}
+
+.hero-subtitle {
+    font-size: 1.25rem;
+    color: var(--text-secondary);
+    margin-bottom: 2rem;
+    min-height: 1.5em;
+}
+
+.login-btn {
+    padding: 1rem 2.5rem;
+    font-size: 1.1rem;
+    font-weight: 600;
+    background: var(--accent-color);
+    color: var(--bg-primary);
+    border-radius: 50px;
+    transition: all 0.3s var(--ease-out);
+    box-shadow: 0 0 20px var(--accent-glow);
+}
+
+.login-btn:hover {
+    transform: translateY(-2px) scale(1.05);
+    box-shadow: 0 0 40px var(--accent-glow);
+}
+
+.fade-in {
+    animation: fadeIn 1s var(--ease-out) forwards;
+    opacity: 0;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Block Cursor */
+.cursor {
+    display: inline-block;
+    width: 0.4em;
+    /* Slightly narrower to match typical character width */
+    height: 0.85em;
+    /* Matches cap height better than 1em */
+    background-color: var(--text-primary);
+    animation: blink 1s step-end infinite;
+    vertical-align: baseline;
+    /* Better alignment with text */
+    margin-left: 2px;
+    margin-bottom: -0.1em;
+    /* Slight offset to align with baseline */
+}
+
+@keyframes blink {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0;
+    }
+}
