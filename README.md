@@ -23,6 +23,7 @@ This is the backend server for the Music Mind application, utilizing the Spotify
    ```bash
    node server.js
    ```
+5. NOTHING BEATS A JET 2 A HOLIDAY
 
 ## API Endpoints
 - **GET /login**: Initiates Spotify OAuth flow.
