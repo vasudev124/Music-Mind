@@ -1,0 +1,75 @@
+.hero-minimal {
+  position: relative;
+  height: 100vh;
+  width: 100%;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+
+  /* Uses your existing dashboard background */
+  background: linear-gradient(135deg, #020205, #150a25);
+}
+
+/* Soft glass spotlight */
+.hero-glass {
+  position: relative;
+  padding: 5rem 6rem;
+  text-align: center;
+
+  background: radial-gradient(
+    circle at center,
+    rgba(255, 255, 255, 0.06),
+    rgba(255, 255, 255, 0.01),
+    transparent 70%
+  );
+
+  backdrop-filter: blur(12px);
+  border-radius: 40px;
+
+  transform: translate(var(--mx, 0px), var(--my, 0px));
+  transition: transform 0.2s ease-out;
+}
+
+/* Typography */
+.hero-title {
+  font-size: 3.6rem;
+  font-weight: 800;
+  line-height: 1.1;
+  color: #ffffff;
+  letter-spacing: -1px;
+  margin-bottom: 2rem;
+}
+
+.hero-title span {
+  background: linear-gradient(90deg, #a29bfe, #74b9ff);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Scroll hint */
+.hero-scroll {
+  font-size: 0.85rem;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.6);
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.hero-scroll .arrow {
+  animation: bounce 1.6s infinite;
+}
+
+@keyframes bounce {
+  0%, 100% {
+    transform: translateY(0);
+    opacity: 0.6;
+  }
+  50% {
+    transform: translateY(6px);
+    opacity: 1;
+  }
+}
