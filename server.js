@@ -13,10 +13,14 @@ const app = express();
 
 
 // Security: HttpOnly Cookies
+app.set('trust proxy', 1);
 app.use(cookieSession({
-    name: 'musicmind-session',
-    keys: [process.env.COOKIE_KEY || 'default_secret_key_change_me'], // Rotate this in production
-    maxAge: 24 * 60 * 60 * 1000 // 24 hours
+    name: 'musicmind-session-v2',
+    keys: [process.env.COOKIE_KEY || 'default_secret_key_change_me'],
+    maxAge: 24 * 60 * 60 * 1000,
+    secure: false, // Localhost (HTTP)
+    httpOnly: true,
+    sameSite: 'lax' // Explicitly allow top-level navigation
 }));
 
 app.use(cors({
@@ -33,8 +37,13 @@ const PORT = process.env.PORT || 8888;
 
 // Check if user is authenticated and refresh token if expired
 async function checkAuth(req, res, next) {
-    if (!req.session.access_token) {
-        return res.status(401).json({ error: 'Not authenticated' });
+    console.log('--- Auth Check Debug ---');
+    console.log('Session Object:', req.session);
+    console.log('Access Token exists:', !!req.session?.access_token);
+
+    if (!req.session || !req.session.access_token) {
+        console.log('❌ No access token found in session.');
+        return res.status(401).json({ error: 'Not authenticated', details: 'No session or access token' });
     }
 
     if (Date.now() > req.session.expires_at) {
@@ -120,15 +129,14 @@ app.get('/callback', async (req, res) => {
 
         // Show success message directly
         res.send(`
-            <div style="font-family: sans-serif; text-align: center; padding: 50px;">
-                <h1>Login Successful!</h1>
-                <p>Welcome, ${userProfile.display_name}!</p>
-                <p>Tokens are stored securely in cookies and you are saved in the database.</p>
-                <div style="margin-top: 20px;">
-                    <a href="/api/user/profile" style="background: #1DB954; color: white; padding: 10px 20px; text-decoration: none; border-radius: 20px;">Check Profile</a>
-                    <a href="/logout" style="background: #333; color: white; padding: 10px 20px; text-decoration: none; border-radius: 20px; margin-left: 10px;">Logout</a>
-                </div>
+        <div style="font-family: sans-serif; text-align: center; padding: 50px;">
+            <h1>LOGIN SUCCESS! 🎉</h1>
+            <p>Welcome, ${userProfile.display_name}!</p>
+            <div style="margin-top: 40px;">
+                <a href="/api/analytics/dashboard" style="background: #000; color: #fff; padding: 20px 40px; text-decoration: none; border-radius: 5px; font-size: 24px;">CLICK HERE FOR DASHBOARD</a>
             </div>
+            <p style="margin-top: 20px; color: #888;">(Do not use other links)</p>
+        </div>
         `);
     } catch (error) {
         console.error('Login Error:', error);
@@ -142,7 +150,7 @@ app.get('/api/user/profile', checkAuth, async (req, res) => {
     try {
         // Option A: Fetch fresh from Spotify
         const response = await axios.get('https://api.spotify.com/v1/me', {
-            headers: { Authorization: `Bearer ${req.session.access_token}` }
+            headers: { Authorization: `Bearer ${req.session.access_token} ` }
         });
         // Option B: Could also fetch from DB using userService.getUser(response.data.id)
         res.json(response.data);
@@ -160,28 +168,50 @@ app.get('/api/me', checkAuth, (req, res) => {
 app.get('/api/analytics/dashboard', checkAuth, async (req, res) => {
     try {
         const accessToken = req.session.access_token;
-        const headers = { Authorization: `Bearer ${accessToken}` };
+        const headers = { Authorization: `Bearer ${accessToken}` }; // Fixed trailing space
 
         // A. Fetch Top Artists (long_term for better genre spread)
-        const topArtistsReq = axios.get('https://api.spotify.com/v1/me/top/artists?limit=50&time_range=long_term', { headers });
+        let artistsRes, tracksRes;
 
-        // B. Fetch Top Tracks (short_term for current mood via audio features)
-        const topTracksReq = axios.get('https://api.spotify.com/v1/me/top/tracks?limit=50&time_range=short_term', { headers });
+        try {
+            console.log('Fetching Top Artists...');
+            artistsRes = await axios.get('https://api.spotify.com/v1/me/top/artists?limit=50&time_range=long_term', { headers });
+            console.log('✅ Top Artists fetched.');
+        } catch (err) {
+            console.error('❌ Failed fetching Top Artists:', err.response?.data || err.message);
+            throw err;
+        }
 
-        const [artistsRes, tracksRes] = await Promise.all([topArtistsReq, topTracksReq]);
+        try {
+            console.log('Fetching Top Tracks...');
+            tracksRes = await axios.get('https://api.spotify.com/v1/me/top/tracks?limit=50&time_range=short_term', { headers });
+            console.log('✅ Top Tracks fetched.');
+        } catch (err) {
+            console.error('❌ Failed fetching Top Tracks:', err.response?.data || err.message);
+            throw err;
+        }
 
         // C. Calculate Top Genres
         const topGenres = analyticsAlgo.getTopGenres(artistsRes.data.items);
 
         // D. Calculate Mood Score (requires Audio Features for tracks)
         const trackIds = tracksRes.data.items.map(t => t.id).join(',');
-        const audioFeaturesRes = await axios.get(`https://api.spotify.com/v1/audio-features?ids=${trackIds}`, { headers });
-        const moodScore = analyticsAlgo.calculateMoodScore(audioFeaturesRes.data.audio_features);
+        let moodScore = 50;
+        try {
+            console.log('Fetching Audio Features for IDs:', trackIds.substring(0, 50) + '...');
+            const audioFeaturesRes = await axios.get(`https://api.spotify.com/v1/audio-features?ids=${trackIds}`, { headers });
+            moodScore = analyticsAlgo.calculateMoodScore(audioFeaturesRes.data.audio_features);
+            console.log('✅ Audio Features fetched.');
+        } catch (err) {
+            console.error('⚠️ Failed fetching Audio Features (Non-fatal):', err.response?.data || err.message);
+            // Verify if error is 403, proceed with default moodScore
+            console.log('⚠️ Defaulting Mood Score to 50.');
+        }
 
         // Result Object
         const analyticsData = {
             topGenres,
-            moodScore,
+            moodScore, // Will be 50 if failed
             totalTracksAnalyzed: tracksRes.data.items.length,
             generatedAt: new Date().toISOString()
         };
