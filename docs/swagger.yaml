@@ -1,0 +1,51 @@
+openapi: 3.0.0
+info:
+  title: MusicMind API
+  version: 1.0.0
+  description: Backend API for MusicMind using Spotify Data.
+servers:
+  - url: http://localhost:8888
+paths:
+  /api/user/profile:
+    get:
+      summary: Get User Profile
+      description: Fetches current user's profile from Spotify.
+      responses:
+        '200':
+          description: User profile object
+  
+  /api/analytics/dashboard:
+    get:
+      summary: Get Analytics Dashboard
+      description: Returns calculated insights like Top Genres and Mood Score.
+      responses:
+        '200':
+          description: Analytics object
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  topGenres:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                         genre: 
+                           type: string
+                         count:
+                           type: integer
+                  moodScore:
+                    type: integer
+                    description: 0-100 score based on Valence/Energy
+                  generatedAt:
+                    type: string
+                    format: date-time
+
+  /api/recommend/generate:
+    post:
+      summary: Generate Recommendations
+      description: Triggers the recommendation engine (Python/AI).
+      responses:
+        '200':
+          description: Status message

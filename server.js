@@ -5,9 +5,12 @@ const cors = require('cors');
 const querystring = require('querystring');
 const cookieSession = require('cookie-session');
 const userService = require('./services/userService');
+const analyticsService = require('./services/analyticsService');
+const analyticsAlgo = require('./utils/analyticsAlgo');
 
 
 const app = express();
+
 
 // Security: HttpOnly Cookies
 app.use(cookieSession({
@@ -122,7 +125,7 @@ app.get('/callback', async (req, res) => {
                 <p>Welcome, ${userProfile.display_name}!</p>
                 <p>Tokens are stored securely in cookies and you are saved in the database.</p>
                 <div style="margin-top: 20px;">
-                    <a href="/api/me" style="background: #1DB954; color: white; padding: 10px 20px; text-decoration: none; border-radius: 20px;">Check Profile</a>
+                    <a href="/api/user/profile" style="background: #1DB954; color: white; padding: 10px 20px; text-decoration: none; border-radius: 20px;">Check Profile</a>
                     <a href="/logout" style="background: #333; color: white; padding: 10px 20px; text-decoration: none; border-radius: 20px; margin-left: 10px;">Logout</a>
                 </div>
             </div>
@@ -134,13 +137,81 @@ app.get('/callback', async (req, res) => {
 });
 
 
-// Protected Route Example: Get My Profile
-app.get('/api/me', checkAuth, async (req, res) => {
+// 1. User Routes: Get Profile (Fetches from Spotify or DB)
+app.get('/api/user/profile', checkAuth, async (req, res) => {
     try {
+        // Option A: Fetch fresh from Spotify
         const response = await axios.get('https://api.spotify.com/v1/me', {
             headers: { Authorization: `Bearer ${req.session.access_token}` }
         });
+        // Option B: Could also fetch from DB using userService.getUser(response.data.id)
         res.json(response.data);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Alias for backwards compatibility if needed
+app.get('/api/me', checkAuth, (req, res) => {
+    res.redirect('/api/user/profile');
+});
+
+// 2. Analytics Routes: Get Dashboard Data (Mood/Trends)
+app.get('/api/analytics/dashboard', checkAuth, async (req, res) => {
+    try {
+        const accessToken = req.session.access_token;
+        const headers = { Authorization: `Bearer ${accessToken}` };
+
+        // A. Fetch Top Artists (long_term for better genre spread)
+        const topArtistsReq = axios.get('https://api.spotify.com/v1/me/top/artists?limit=50&time_range=long_term', { headers });
+
+        // B. Fetch Top Tracks (short_term for current mood via audio features)
+        const topTracksReq = axios.get('https://api.spotify.com/v1/me/top/tracks?limit=50&time_range=short_term', { headers });
+
+        const [artistsRes, tracksRes] = await Promise.all([topArtistsReq, topTracksReq]);
+
+        // C. Calculate Top Genres
+        const topGenres = analyticsAlgo.getTopGenres(artistsRes.data.items);
+
+        // D. Calculate Mood Score (requires Audio Features for tracks)
+        const trackIds = tracksRes.data.items.map(t => t.id).join(',');
+        const audioFeaturesRes = await axios.get(`https://api.spotify.com/v1/audio-features?ids=${trackIds}`, { headers });
+        const moodScore = analyticsAlgo.calculateMoodScore(audioFeaturesRes.data.audio_features);
+
+        // Result Object
+        const analyticsData = {
+            topGenres,
+            moodScore,
+            totalTracksAnalyzed: tracksRes.data.items.length,
+            generatedAt: new Date().toISOString()
+        };
+
+        // E. Save to DB (Background)
+        // We need user ID. First fetch profile or store it in session during login.
+        // For now, let's fast fetch profile again or use a cached ID if we had it.
+        const meRes = await axios.get('https://api.spotify.com/v1/me', { headers });
+        await analyticsService.saveAnalytics(meRes.data.id, analyticsData);
+
+        res.json(analyticsData);
+
+    } catch (error) {
+        console.error('Analytics Error:', error.message);
+        res.status(500).json({ error: 'Failed to generate analytics', details: error.message });
+    }
+});
+
+// 3. Recommendation Routes: Trigger Generator
+app.post('/api/recommend/generate', checkAuth, async (req, res) => {
+    try {
+        // Placeholder for calling Python Recommendation Engine
+        // const pythonProcess = spawn('python', ['recommend_engine.py', userId]);
+
+        // Mock Response for Phase 3
+        res.json({
+            message: "Recommendation generation started.",
+            status: "processing",
+            estimated_time: "5 seconds"
+        });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
