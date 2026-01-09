@@ -1,300 +1,147 @@
-require('dotenv').config();
+const path = require('path');
+// 1. Load Environment Variables immediately
+require('dotenv').config({ path: path.join(__dirname, '.env') });
+
 const express = require('express');
 const axios = require('axios');
 const cors = require('cors');
 const querystring = require('querystring');
 const cookieSession = require('cookie-session');
+
+// 2. Import Services (must exist)
 const userService = require('./services/userService');
 const analyticsService = require('./services/analyticsService');
 const friendService = require('./services/friendService');
 const analyticsAlgo = require('./utils/analyticsAlgo');
 
-
+// 3. Initialize App & Constants
 const app = express();
+const PORT = process.env.PORT || 8888;
 
+// Sanitize Envs
+const CLIENT_ID = (process.env.CLIENT_ID || '').trim();
+const CLIENT_SECRET = (process.env.CLIENT_SECRET || '').trim();
+const REDIRECT_URI = (process.env.REDIRECT_URI || '').trim();
 
-// Security: HttpOnly Cookies
+// Diagnostics Log
+console.log('--- SERVER CONFIG ---');
+console.log(`CLIENT_ID: ${CLIENT_ID ? 'Set (Length ' + CLIENT_ID.length + ')' : 'MISSING'}`);
+console.log(`REDIRECT_URI: ${REDIRECT_URI || 'MISSING'}`);
+console.log('---------------------');
+
+// 4. Middlewares (Global)
 app.set('trust proxy', 1);
 app.use(cookieSession({
     name: 'musicmind-session-v2',
     keys: [process.env.COOKIE_KEY || 'default_secret_key_change_me'],
     maxAge: 24 * 60 * 60 * 1000,
-    secure: false, // Localhost (HTTP)
+    secure: false,
     httpOnly: true,
-    sameSite: 'lax' // Explicitly allow top-level navigation
+    sameSite: 'lax'
 }));
 
 app.use(cors({
-    origin: 'http://localhost:5173', // Frontend URL (Vite default)
-    credentials: true // Allow cookies to be sent
+    origin: 'http://localhost:5173',
+    credentials: true
 }));
-app.use(express.json()); // Enable JSON body parsing
+app.use(express.json());
 
-const CLIENT_ID = process.env.CLIENT_ID;
-const CLIENT_SECRET = process.env.CLIENT_SECRET;
-const REDIRECT_URI = process.env.REDIRECT_URI;
-const PORT = process.env.PORT || 8888;
+// 5. Custom Middlewares (Definitions)
 
-// --- Middlewares ---
-
-// Check if user is authenticated and refresh token if expired
+/**
+ * Middleware to check authentication status.
+ * Defined BEFORE usage in routes to avoid ReferenceError.
+ */
 async function checkAuth(req, res, next) {
-    console.log('--- Auth Check Debug ---');
-    console.log('Session Object:', req.session);
-    console.log('Access Token exists:', !!req.session?.access_token);
-
     if (!req.session || !req.session.access_token) {
-        console.log('❌ No access token found in session.');
-        return res.status(401).json({ error: 'Not authenticated', details: 'No session or access token' });
+        return res.status(401).json({ error: 'Not authenticated' });
     }
 
     if (Date.now() > req.session.expires_at) {
         console.log('🔄 Token expired. Refreshing...');
         try {
-            const refreshResponse = await axios({
-                method: 'post',
-                url: 'https://accounts.spotify.com/api/token',
-                data: querystring.stringify({
-                    grant_type: 'refresh_token',
-                    refresh_token: req.session.refresh_token
-                }),
-                headers: {
-                    'content-type': 'application/x-www-form-urlencoded',
-                    Authorization: `Basic ${Buffer.from(`${CLIENT_ID}:${CLIENT_SECRET}`).toString('base64')}`,
-                },
+            // Refresh Token Request - Using Body Params for stability
+            const params = new URLSearchParams();
+            params.append('grant_type', 'refresh_token');
+            params.append('refresh_token', req.session.refresh_token);
+            params.append('client_id', CLIENT_ID);
+            params.append('client_secret', CLIENT_SECRET);
+
+            const refreshResponse = await axios.post('https://accounts.spotify.com/api/token', params, {
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
             });
 
             const { access_token, expires_in } = refreshResponse.data;
             req.session.access_token = access_token;
-            // Update expiration (subtract 1 min buffer)
             req.session.expires_at = Date.now() + (expires_in * 1000) - 60000;
-            console.log('✅ Token refreshed successfully.');
+            console.log('✅ Token refreshed.');
         } catch (error) {
-            console.error('❌ Failed to refresh token:', error.response?.data || error.message);
-            req.session = null; // Clear session
-            return res.status(401).json({ error: 'Session expired. Please login again.' });
+            console.error('❌ Failed to refresh:', error.response?.data || error.message);
+            req.session = null;
+            return res.status(401).json({ error: 'Session expired' });
         }
     }
     next();
 }
 
-// --- Routes ---
+// 6. Routes
+
+// --- Auth Routes ---
 
 app.get('/login', (req, res) => {
-    const scope = 'user-read-private user-read-email user-top-read'; // Added user-top-read for Phase 1 Data
-    const queryParams = querystring.stringify({
-        response_type: 'code',
-        client_id: CLIENT_ID,
-        scope: scope,
-        redirect_uri: REDIRECT_URI
-    });
-    res.redirect(`https://accounts.spotify.com/authorize?${queryParams}`);
+    const scope = 'user-read-private user-read-email user-top-read';
+    // Strictly use the sanitized env var for redirect
+    const authUrl = `https://accounts.spotify.com/authorize?response_type=code&client_id=${CLIENT_ID}&scope=${encodeURIComponent(scope)}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}`;
+    res.redirect(authUrl);
 });
 
 app.get('/callback', async (req, res) => {
     const code = req.query.code || null;
+    const error = req.query.error || null;
+
+    if (error) return res.send(`Spotify Error: ${error}`);
+
     try {
+        // Raw String Construction to avoid any serialization issues
+        // We put credentials in BOTH Body (as fallback) and Header
+        const rawBody = `grant_type=authorization_code&code=${code}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&client_id=${CLIENT_ID}&client_secret=${CLIENT_SECRET}`;
+
+        console.log('[CALLBACK] Sending Raw Payload (Hidden Secrets)');
+
         const response = await axios({
             method: 'post',
             url: 'https://accounts.spotify.com/api/token',
-            data: querystring.stringify({
-                grant_type: 'authorization_code',
-                code: code,
-                redirect_uri: REDIRECT_URI
-            }),
+            data: rawBody,
             headers: {
-                'content-type': 'application/x-www-form-urlencoded',
-                Authorization: `Basic ${Buffer.from(`${CLIENT_ID}:${CLIENT_SECRET}`).toString('base64')}`,
-            },
+                'Content-Type': 'application/x-www-form-urlencoded'
+            }
         });
 
         const { access_token, refresh_token, expires_in } = response.data;
 
-        // Fetch User Profile immediately to get ID
-        const profileResponse = await axios.get('https://api.spotify.com/v1/me', {
+        // Get Profile
+        const profileRes = await axios.get('https://api.spotify.com/v1/me', {
             headers: { Authorization: `Bearer ${access_token}` }
         });
 
-        const userProfile = profileResponse.data;
+        // Save User
+        await userService.upsertUser(profileRes.data, refresh_token);
 
-        // Save/Update User in DB
-        await userService.upsertUser(userProfile, refresh_token);
-        console.log(`✅ User ${userProfile.display_name} (${userProfile.id}) saved to DB.`);
-
-        // Store in HttpOnly Cookie
+        // Update Session
         req.session.access_token = access_token;
         req.session.refresh_token = refresh_token;
-        req.session.expires_at = Date.now() + (expires_in * 1000) - 60000; // 1 min buffer
+        req.session.expires_at = Date.now() + (expires_in * 1000) - 60000;
 
-        // Redirect to Frontend (or a success page for now)
         res.redirect('http://localhost:5173/dashboard?login=success');
-    } catch (error) {
-        console.error('Login Error:', error);
-        res.send('Error during login: ' + error.message);
-    }
-});
 
-// Phase 3 Aliases
-app.get('/auth/login', (req, res) => res.redirect('/login'));
-app.get('/auth/me', checkAuth, (req, res) => res.redirect('/api/user/profile'));
-app.get('/auth/logout', (req, res) => res.redirect('/logout'));
-
-
-// 1. User Routes: Get Profile (Fetches from Spotify or DB)
-app.get('/api/user/profile', checkAuth, async (req, res) => {
-    try {
-        // Option A: Fetch fresh from Spotify
-        const response = await axios.get('https://api.spotify.com/v1/me', {
-            headers: { Authorization: `Bearer ${req.session.access_token} ` }
-        });
-        // Option B: Could also fetch from DB using userService.getUser(response.data.id)
-        res.json(response.data);
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
-
-// Alias for backwards compatibility if needed
-app.get('/api/me', checkAuth, (req, res) => {
-    res.redirect('/api/user/profile');
-});
-
-// 2. Analytics Routes: Get Dashboard Data (Mood/Trends)
-app.get('/api/analytics/dashboard', checkAuth, async (req, res) => {
-    try {
-        const accessToken = req.session.access_token;
-        const headers = { Authorization: `Bearer ${accessToken}` }; // Fixed trailing space
-
-        // A. Fetch Top Artists (long_term for better genre spread)
-        let artistsRes, tracksRes;
-
-        try {
-            console.log('Fetching Top Artists...');
-            artistsRes = await axios.get('https://api.spotify.com/v1/me/top/artists?limit=50&time_range=long_term', { headers });
-            console.log('✅ Top Artists fetched.');
-        } catch (err) {
-            console.error('❌ Failed fetching Top Artists:', err.response?.data || err.message);
-            throw err;
+    } catch (err) {
+        console.error('Login Callback Error:', err.message);
+        if (err.response) {
+            console.error('Spotify Response:', err.response.data);
+            res.send(`Spotify Auth Error: ${JSON.stringify(err.response.data)}`);
+        } else {
+            res.send(`Auth Error: ${err.message}`);
         }
-
-        try {
-            console.log('Fetching Top Tracks...');
-            tracksRes = await axios.get('https://api.spotify.com/v1/me/top/tracks?limit=50&time_range=short_term', { headers });
-            console.log('✅ Top Tracks fetched.');
-        } catch (err) {
-            console.error('❌ Failed fetching Top Tracks:', err.response?.data || err.message);
-            throw err;
-        }
-
-        // C. Calculate Top Genres
-        const topGenres = analyticsAlgo.getTopGenres(artistsRes.data.items);
-
-        // D. Calculate Mood Score (requires Audio Features for tracks)
-        const trackIds = tracksRes.data.items.map(t => t.id).join(',');
-        let moodScore = 50;
-        try {
-            console.log('Fetching Audio Features for IDs:', trackIds.substring(0, 50) + '...');
-            const audioFeaturesRes = await axios.get(`https://api.spotify.com/v1/audio-features?ids=${trackIds}`, { headers });
-            moodScore = analyticsAlgo.calculateMoodScore(audioFeaturesRes.data.audio_features);
-            console.log('✅ Audio Features fetched.');
-        } catch (err) {
-            console.error('⚠️ Failed fetching Audio Features (Non-fatal):', err.response?.data || err.message);
-            // Verify if error is 403, proceed with default moodScore
-            console.log('⚠️ Defaulting Mood Score to 50.');
-        }
-
-        // Result Object
-        const analyticsData = {
-            topGenres,
-            moodScore, // Will be 50 if failed
-            topTracks: tracksRes.data.items.slice(0, 5).map(t => ({
-                name: t.name,
-                artist: t.artists[0].name,
-                image: t.album.images[0]?.url,
-                preview: t.preview_url
-            })),
-            totalTracksAnalyzed: tracksRes.data.items.length,
-            generatedAt: new Date().toISOString()
-        };
-
-        // E. Save to DB (Background)
-        // We need user ID. First fetch profile or store it in session during login.
-        // For now, let's fast fetch profile again or use a cached ID if we had it.
-        const meRes = await axios.get('https://api.spotify.com/v1/me', { headers });
-        await analyticsService.saveAnalytics(meRes.data.id, analyticsData);
-
-        res.json(analyticsData);
-
-    } catch (error) {
-        console.error('Analytics Error:', error.message);
-        res.status(500).json({ error: 'Failed to generate analytics', details: error.message });
-    }
-});
-
-// 3. Recommendation Routes: Trigger Generator
-app.post('/api/recommend/generate', checkAuth, async (req, res) => {
-    try {
-        // Placeholder for calling Python Recommendation Engine
-        // const pythonProcess = spawn('python', ['recommend_engine.py', userId]);
-
-        // Mock Response for Phase 3
-        res.json({
-            message: "Recommendation generation started.",
-            status: "processing",
-            estimated_time: "5 seconds"
-        });
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
-
-app.get('/recommendations', checkAuth, async (req, res) => {
-    // TODO: Fetch from DB using recommendationService
-    res.json([]);
-});
-
-// --- Friends API ---
-app.get('/friends/search', checkAuth, async (req, res) => {
-    try {
-        const query = req.query.q;
-        if (!query) return res.status(400).json({ error: "Query required" });
-
-        // Need current user ID to exclude self. Fetch from Spotify or Session if stored.
-        const meRes = await axios.get('https://api.spotify.com/v1/me', {
-            headers: { Authorization: `Bearer ${req.session.access_token}` }
-        });
-
-        const users = await friendService.searchUsers(query, meRes.data.id);
-        res.json(users);
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
-
-app.post('/friends/request', checkAuth, async (req, res) => {
-    try {
-        const { receiverId } = req.body; // Expect JSON body
-        // Get requester ID
-        const meRes = await axios.get('https://api.spotify.com/v1/me', {
-            headers: { Authorization: `Bearer ${req.session.access_token}` }
-        });
-
-        const result = await friendService.sendRequest(meRes.data.id, receiverId);
-        res.json(result);
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
-
-app.get('/friends', checkAuth, async (req, res) => {
-    try {
-        const meRes = await axios.get('https://api.spotify.com/v1/me', {
-            headers: { Authorization: `Bearer ${req.session.access_token}` }
-        });
-        const friends = await friendService.getFriends(meRes.data.id);
-        res.json(friends);
-    } catch (error) {
-        res.status(500).json({ error: error.message });
     }
 });
 
@@ -303,11 +150,121 @@ app.get('/logout', (req, res) => {
     res.redirect('/');
 });
 
-app.get('/', (req, res) => {
-    res.send(`<h1>MusicMind Backend</h1><p>Server is running.</p><a href="/login">Login with Spotify</a>`);
+// Aliases
+app.get('/auth/login', (req, res) => res.redirect('/login'));
+app.get('/auth/me', checkAuth, (req, res) => res.redirect('/api/user/profile'));
+app.get('/auth/logout', (req, res) => res.redirect('/logout'));
+
+// --- User & Analytics API ---
+
+app.get('/api/user/profile', checkAuth, async (req, res) => {
+    try {
+        const response = await axios.get('https://api.spotify.com/v1/me', {
+            headers: { Authorization: `Bearer ${req.session.access_token}` }
+        });
+        res.json(response.data);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
 });
 
-app.listen(PORT, () => {
-    console.log(`🚀 Server is running! Go to http://localhost:${PORT}/login`);
+app.get('/api/analytics/dashboard', checkAuth, async (req, res) => {
+    try {
+        const headers = { Authorization: `Bearer ${req.session.access_token}` };
+
+        // Parallel Fetch for speed
+        const [artistsRes, tracksRes] = await Promise.all([
+            axios.get('https://api.spotify.com/v1/me/top/artists?limit=50&time_range=long_term', { headers }),
+            axios.get('https://api.spotify.com/v1/me/top/tracks?limit=50&time_range=short_term', { headers })
+        ]);
+
+        const topGenres = analyticsAlgo.getTopGenres(artistsRes.data.items);
+        const trackIds = tracksRes.data.items.map(t => t.id).join(',');
+
+        let moodScore = 50;
+        try {
+            const audioRes = await axios.get(`https://api.spotify.com/v1/audio-features?ids=${trackIds}`, { headers });
+            moodScore = analyticsAlgo.calculateMoodScore(audioRes.data.audio_features);
+        } catch (e) {
+            console.error('Audio Features warning:', e.message);
+        }
+
+        const analyticsData = {
+            topGenres,
+            moodScore,
+            topTracks: tracksRes.data.items.slice(0, 5).map(t => ({
+                name: t.name,
+                artist: t.artists[0].name,
+                image: t.album.images[0]?.url,
+                preview: t.preview_url
+            })),
+            generatedAt: new Date().toISOString()
+        };
+
+        // Async save to DB
+        const meRes = await axios.get('https://api.spotify.com/v1/me', { headers });
+        analyticsService.saveAnalytics(meRes.data.id, analyticsData).catch(e => console.error('DB Save Error:', e));
+
+        res.json(analyticsData);
+    } catch (error) {
+        console.error('Dashboard Error:', error.message);
+        res.status(500).json({ error: error.message });
+    }
 });
 
+// --- Friends API ---
+
+app.get('/friends/search', checkAuth, async (req, res) => {
+    try {
+        const query = req.query.q;
+        if (!query) return res.status(400).json({ error: "Query required" });
+        const me = await axios.get('https://api.spotify.com/v1/me', { headers: { Authorization: `Bearer ${req.session.access_token}` } });
+        const users = await friendService.searchUsers(query, me.data.id);
+        res.json(users);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/friends/request', checkAuth, async (req, res) => {
+    try {
+        const { receiverId } = req.body;
+        const me = await axios.get('https://api.spotify.com/v1/me', { headers: { Authorization: `Bearer ${req.session.access_token}` } });
+        const result = await friendService.sendRequest(me.data.id, receiverId);
+        res.json(result);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/friends', checkAuth, async (req, res) => {
+    try {
+        const me = await axios.get('https://api.spotify.com/v1/me', { headers: { Authorization: `Bearer ${req.session.access_token}` } });
+        const friends = await friendService.getFriends(me.data.id);
+        res.json(friends);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/friends/compare', checkAuth, async (req, res) => {
+    try {
+        const { targetUserId } = req.body;
+        const me = await axios.get('https://api.spotify.com/v1/me', { headers: { Authorization: `Bearer ${req.session.access_token}` } });
+        const result = await friendService.compareUsers(me.data.id, targetUserId);
+        res.json(result);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- Test Panel ---
+app.get('/test-panel', (req, res) => {
+    res.send(`
+    <html>
+    <body style="font-family:sans-serif; padding:20px;">
+        <h1>MusicMind Debug Panel</h1>
+        <p>Status: Server Running</p>
+        <button onclick="window.location.href='/login'">Login (Spotify)</button>
+        <button onclick="fetch('/api/analytics/dashboard').then(r=>r.json()).then(d=>document.body.append(JSON.stringify(d)))">Data</button>
+    </body>
+    </html>
+    `);
+});
+
+app.get('/', (req, res) => res.send('<h1>MusicMind Backend</h1><a href="/login">Login</a>'));
+
+// 7. Start Server
+app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
