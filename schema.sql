@@ -23,3 +23,14 @@ CREATE TABLE IF NOT EXISTS recommendations (
     playlist_data JSONB, -- Snapshot of the recommended playlist
     generated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Friends Table: Stores bi-directional friendships
+CREATE TABLE IF NOT EXISTS friends (
+    id SERIAL PRIMARY KEY,
+    requester_id VARCHAR(255) REFERENCES users(spotify_id) ON DELETE CASCADE,
+    receiver_id VARCHAR(255) REFERENCES users(spotify_id) ON DELETE CASCADE,
+    status VARCHAR(50) DEFAULT 'pending', -- pending, accepted, rejected
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(requester_id, receiver_id)
+);
