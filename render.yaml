@@ -3,9 +3,8 @@ services:
   - type: web
     name: musicmind-backend
     env: node
-    root: backend
-    buildCommand: npm install
-    startCommand: node server.js
+    buildCommand: cd backend && npm install
+    startCommand: cd backend && node server.js
     envVars:
       - key: PORT
         value: 10000
@@ -15,7 +14,7 @@ services:
         sync: false
       - key: FRONTEND_URL
         fromService:
-          type: web
+          type: static
           name: musicmind-frontend
           property: url
       - key: REDIRECT_URI
@@ -26,12 +25,11 @@ services:
           value: /callback 
 
   # Frontend Service (Static Site)
-  - type: web
+  - type: static
     name: musicmind-frontend
     env: static
-    root: frontend
-    buildCommand: npm install && npm run build
-    publishDir: dist
+    buildCommand: cd frontend && npm install && npm run build
+    publishDir: frontend/dist
     routes:
       - type: rewrite
         source: /*
