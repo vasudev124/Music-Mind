@@ -15,7 +15,7 @@ services:
         sync: false
       - key: FRONTEND_URL
         fromService:
-          type: static
+          type: web
           name: musicmind-frontend
           property: url
       - key: REDIRECT_URI
