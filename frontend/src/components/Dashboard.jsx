@@ -18,17 +18,17 @@ const Dashboard = () => {
   const [activeSection, setActiveSection] = useState(0);
 
   const { data: dashboardData, loading, error } = useDashboardData();
-  const genres = dashboardData?.genres || [];
-  const friends = dashboardData?.friends || [];
-  const recommendations = dashboardData?.recommendations || [];
 
+  // ✅ Backend-aligned data
+  const genres = dashboardData?.genres || [];
+  const moodScore = dashboardData?.moodScore ?? null;
+  const topTracks = dashboardData?.topTracks || [];
 
   useEffect(() => {
     setIsVisible(true);
 
     const handleScroll = () => {
       const currentScroll = window.scrollY;
-
       if (currentScroll < 400) setActiveSection(0);
       else if (currentScroll < 900) setActiveSection(1);
       else setActiveSection(2);
@@ -69,30 +69,38 @@ const Dashboard = () => {
 
       <main className="dashboard-grid">
 
+        {/* -------- MUSIC INSIGHTS -------- */}
         <div className="section-wrapper" style={{ position: 'sticky', top: '120px', zIndex: 1, width: '884px' }}>
           <TiltCard className="glass-panel section-card insights-card">
             <div className="card-content-relative">
               <h3>Music Insights</h3>
+
+              {/* ✅ Mood Score Proof */}
+              {moodScore !== null && (
+                <p style={{ marginBottom: '12px', opacity: 0.8 }}>
+                  Mood Score: <strong>{moodScore}</strong>
+                </p>
+              )}
+
               <div className="genre-bars">
                 {genres.length === 0 && (
                   <p style={{ textAlign: 'center', color: 'var(--text-secondary)' }}>
                     No genre data available
                   </p>
-        )}
+                )}
 
                 {genres.map((g) => (
                   <div key={g.name} className="genre-row">
                     <span>{g.name}</span>
-
                     <div className="progress-bar-bg">
                       <div
-                      className="progress-bar-fill"
-                      style={{ width: `${g.percent}%` }}
-                    />
+                        className="progress-bar-fill"
+                        style={{ width: `${g.percent}%` }}
+                      />
+                    </div>
                   </div>
-                </div>
-             ))}
-        </div>
+                ))}
+              </div>
 
               <button className="explore-btn" onClick={() => navigate('/music-insights')}>
                 View Full Insights
@@ -101,53 +109,35 @@ const Dashboard = () => {
           </TiltCard>
         </div>
 
+        {/* -------- FRIENDS (DISABLED FOR NOW) -------- */}
         <div className="section-wrapper" style={{ position: 'sticky', top: '120px', zIndex: 2, width: '884px' }}>
           <TiltCard
             className="glass-panel section-card friends-card"
             style={{ '--friends-bg': `url(${friendsBg})` }}
           >
             <h3>Compare with Friends</h3>
-            <div className="friends-list">
-  {friends.length === 0 && (
-    <p style={{ textAlign: 'center', color: 'var(--text-secondary)' }}>
-      No friends connected yet
-    </p>
-  )}
-
-  {friends.map((f) => (
-    <div key={f.name} className="rec-item">
-      <strong>{f.name}</strong>
-      <span style={{ float: 'right' }}>{f.match}</span>
-    </div>
-  ))}
-</div>
-
-            <button className="explore-btn">Find Friends</button>
+            <p style={{ textAlign: 'center', color: 'var(--text-secondary)' }}>
+              Friends feature coming soon
+            </p>
+            <button className="explore-btn" disabled>
+              Find Friends
+            </button>
           </TiltCard>
         </div>
 
+        {/* -------- RECOMMENDATIONS (DISABLED FOR NOW) -------- */}
         <div className="section-wrapper" style={{ position: 'sticky', top: '120px', zIndex: 3, width: '884px' }}>
           <TiltCard
             className="glass-panel section-card recs-section"
             style={{ '--recs-bg': `url(${recsBg})` }}
           >
             <h3>Recommendations</h3>
-            <div className="recs-list">
-  {recommendations.length === 0 && (
-    <p style={{ textAlign: 'center', color: 'var(--text-secondary)' }}>
-      No recommendations yet
-    </p>
-  )}
-
-  {recommendations.map((rec) => (
-    <div key={rec.id} className="rec-item">
-      <div className="song-title">{rec.title}</div>
-      <div className="song-artist">{rec.artist}</div>
-    </div>
-  ))}
-</div>
-
-            <button className="explore-btn">Start Listening</button>
+            <p style={{ textAlign: 'center', color: 'var(--text-secondary)' }}>
+              Recommendations coming soon
+            </p>
+            <button className="explore-btn" disabled>
+              Start Listening
+            </button>
           </TiltCard>
         </div>
 
