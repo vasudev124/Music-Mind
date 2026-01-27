@@ -10,7 +10,9 @@ const useDashboardData = () => {
     const fetchDashboard = async () => {
       try {
         const response = await getDashboardData();
+        console.log('DASHBOARD DATA FROM API:', response);
         setData(response);
+
       } catch (err) {
         setError('Failed to load dashboard data');
       } finally {
