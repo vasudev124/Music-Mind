@@ -80,17 +80,12 @@ const Dashboard = () => {
     <span className="nav-item">Recommendations</span>
 
     <span
-  className="nav-item"
-  onClick={() => {
-    console.log("LOGOUT CLICKED");
-    window.location.href =
-      "https://musicmind-backend.onrender.com/auth/logout";
-  }}
-  style={{ cursor: "pointer" }}
->
-  Profile
-</span>
-
+      className="nav-item"
+      onClick={handleLogout}
+      style={{ cursor: "pointer" }}
+    >
+      Logout
+    </span>
   </div>
 </nav>
 
