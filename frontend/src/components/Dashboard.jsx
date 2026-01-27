@@ -1,3 +1,17 @@
+function Dashboard() {
+
+  const handleLogout = () => {
+    window.location.href =
+      "https://musicmind-backend.onrender.com/auth/logout";
+  };
+
+  return (
+    <>
+      {/* navbar + rest of dashboard */}
+    </>
+  );
+}
+
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
@@ -58,14 +72,23 @@ const Dashboard = () => {
       </div>
 
       <nav className="navbar">
-        <h2 className="logo">MusicMind</h2>
-        <div className="nav-links">
-          <span className="nav-item active">Dashboard</span>
-          <span className="nav-item">Friends</span>
-          <span className="nav-item">Recommendations</span>
-          <span className="nav-item">Profile</span>
-        </div>
-      </nav>
+  <h2 className="logo">MusicMind</h2>
+
+  <div className="nav-links">
+    <span className="nav-item active">Dashboard</span>
+    <span className="nav-item">Friends</span>
+    <span className="nav-item">Recommendations</span>
+
+    <span
+      className="nav-item"
+      onClick={handleLogout}
+      style={{ cursor: "pointer" }}
+    >
+      Logout
+    </span>
+  </div>
+</nav>
+
 
       <HeroSection />
 
