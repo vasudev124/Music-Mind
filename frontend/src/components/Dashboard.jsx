@@ -1,6 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-
 import useDashboardData from '../hooks/useDashboardData';
 
 import HeroSection from './HeroSection';
@@ -16,23 +15,25 @@ const Dashboard = () => {
 
   const [isVisible, setIsVisible] = useState(false);
   const [activeSection, setActiveSection] = useState(0);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+
+  const profileRef = useRef(null);
+  const profileButtonRef = useRef(null);
 
   const { data: dashboardData, loading, error } = useDashboardData();
-  console.log('DASHBOARD COMPONENT DATA:', dashboardData);
 
-
-  // ✅ Backend-aligned data
+  // Backend-aligned data
   const genres = dashboardData?.genres || [];
   const moodScore = dashboardData?.moodScore ?? null;
-  const topTracks = dashboardData?.topTracks || [];
 
+  /* -------------------- Scroll Logic -------------------- */
   useEffect(() => {
     setIsVisible(true);
 
     const handleScroll = () => {
-      const currentScroll = window.scrollY;
-      if (currentScroll < 400) setActiveSection(0);
-      else if (currentScroll < 900) setActiveSection(1);
+      const y = window.scrollY;
+      if (y < 400) setActiveSection(0);
+      else if (y < 900) setActiveSection(1);
       else setActiveSection(2);
     };
 
@@ -40,6 +41,24 @@ const Dashboard = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  /* -------------------- Outside Click (Profile Dropdown) -------------------- */
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (
+        profileRef.current &&
+        !profileRef.current.contains(e.target) &&
+        profileButtonRef.current &&
+        !profileButtonRef.current.contains(e.target)
+      ) {
+        setIsProfileOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  /* -------------------- Loading / Error -------------------- */
   if (loading) {
     return <div className="dashboard-container visible">Loading dashboard...</div>;
   }
@@ -48,8 +67,11 @@ const Dashboard = () => {
     return <div className="dashboard-container visible">{error}</div>;
   }
 
+  /* -------------------- Render -------------------- */
   return (
     <div className={`dashboard-container ${isVisible ? 'visible' : ''}`}>
+
+      {/* Background */}
       <div className="dashboard-background-layer" data-section={activeSection}>
         <div className="dashboard-noise"></div>
         <div className="dashboard-orb orb-1"></div>
@@ -57,13 +79,36 @@ const Dashboard = () => {
         <div className="dashboard-orb orb-3"></div>
       </div>
 
+      {/* Navbar */}
       <nav className="navbar">
         <h2 className="logo">MusicMind</h2>
+
         <div className="nav-links">
           <span className="nav-item active">Dashboard</span>
           <span className="nav-item">Friends</span>
           <span className="nav-item">Recommendations</span>
-          <span className="nav-item">Profile</span>
+
+          {/* Profile Trigger + Dropdown */}
+          <div
+            ref={profileButtonRef}
+            className="nav-item profile-trigger"
+            onClick={() => setIsProfileOpen(prev => !prev)}
+          >
+            profile
+
+            {isProfileOpen && (
+              <div ref={profileRef} className="profile-dropdown">
+                <button
+                  className="profile-dropdown-item logout"
+                  onClick={() => {
+                    window.location.href = "/";
+                  }}
+                >
+                  Logout
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </nav>
 
@@ -77,7 +122,6 @@ const Dashboard = () => {
             <div className="card-content-relative">
               <h3>Music Insights</h3>
 
-              {/* ✅ Mood Score Proof */}
               {moodScore !== null && (
                 <p style={{ marginBottom: '12px', opacity: 0.8 }}>
                   Mood Score: <strong>{moodScore}</strong>
@@ -104,14 +148,17 @@ const Dashboard = () => {
                 ))}
               </div>
 
-              <button className="explore-btn" onClick={() => navigate('/music-insights')}>
+              <button
+                className="explore-btn"
+                onClick={() => navigate('/music-insights')}
+              >
                 View Full Insights
               </button>
             </div>
           </TiltCard>
         </div>
 
-        {/* -------- FRIENDS (DISABLED FOR NOW) -------- */}
+        {/* -------- FRIENDS -------- */}
         <div className="section-wrapper" style={{ position: 'sticky', top: '120px', zIndex: 2, width: '884px' }}>
           <TiltCard
             className="glass-panel section-card friends-card"
@@ -127,7 +174,7 @@ const Dashboard = () => {
           </TiltCard>
         </div>
 
-        {/* -------- RECOMMENDATIONS (DISABLED FOR NOW) -------- */}
+        {/* -------- RECOMMENDATIONS -------- */}
         <div className="section-wrapper" style={{ position: 'sticky', top: '120px', zIndex: 3, width: '884px' }}>
           <TiltCard
             className="glass-panel section-card recs-section"
