@@ -1,60 +1,56 @@
 const Redis = require('ioredis');
 
-// Use environment variable for Redis URL or default to localhost
-const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
+let redis = null;
 
-console.log(`[Cache] Connecting to Redis at ${REDIS_URL.split('@').pop()}`); // Log only host for security
+// Redis connection (mandatory by design, enabled via env)
+if (process.env.CACHE_URL) {
+    redis = new Redis(process.env.CACHE_URL, {
+        retryStrategy(times) {
+            return Math.min(times * 100, 2000);
+        }
+    });
 
-const redis = new Redis(REDIS_URL, {
-    lazyConnect: true,
-    retryStrategy(times) {
-        const delay = Math.min(times * 100, 2000);
-        return delay;
-    }
-});
+    redis.on('connect', () => {
+        console.log('✅ Redis connected');
+    });
 
-redis.on('error', (err) => {
-    // Suppress heavy error logging if redis is just missing locally
-    if (err.code === 'ECONNREFUSED') {
-        console.warn('[Cache] Redis connection refused. Caching disabled.');
-    } else {
-        console.error('[Cache] Redis Error:', err.message);
-    }
-});
-
-redis.on('connect', () => console.log('[Cache] Redis Connected'));
-
-async function get(key) {
-    if (redis.status !== 'ready') return null;
-    try {
-        const data = await redis.get(key);
-        return data ? JSON.parse(data) : null;
-    } catch (e) {
-        return null; // Fail safe
-    }
+    redis.on('error', (err) => {
+        console.error('❌ Redis error:', err.message);
+    });
+} else {
+    console.warn('⚠️ Redis disabled (CACHE_URL not set)');
 }
 
-async function set(key, value, ttlSeconds = 3600) {
-    if (redis.status !== 'ready') return;
-    try {
-        await redis.set(key, JSON.stringify(value), 'EX', ttlSeconds);
-    } catch (e) {
-        console.error('[Cache] Set Error:', e.message);
-    }
-}
+// Cache API used by server.js
+const cache = {
+    async get(key) {
+        if (!redis) return null;
+        try {
+            const value = await redis.get(key);
+            return value ? JSON.parse(value) : null;
+        } catch (err) {
+            console.error('[Cache] GET error:', err.message);
+            return null;
+        }
+    },
 
-async function del(key) {
-    if (redis.status !== 'ready') return;
-    try {
-        await redis.del(key);
-    } catch (e) {
-        console.error('[Cache] Del Error:', e.message);
-    }
-}
+    async set(key, value, ttlSeconds = 600) {
+        if (!redis) return;
+        try {
+            await redis.set(key, JSON.stringify(value), 'EX', ttlSeconds);
+        } catch (err) {
+            console.error('[Cache] SET error:', err.message);
+        }
+    },
 
-module.exports = {
-    get,
-    set,
-    del,
-    redis
+    async del(key) {
+        if (!redis) return;
+        try {
+            await redis.del(key);
+        } catch (err) {
+            console.error('[Cache] DEL error:', err.message);
+        }
+    }
 };
+
+module.exports = { cache };
