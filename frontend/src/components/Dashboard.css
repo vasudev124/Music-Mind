@@ -569,3 +569,45 @@
     background-position: 0 50%;
   }
 }
+.profile-trigger {
+  position: relative;
+}
+
+.profile-dropdown {
+  position: absolute;
+  top: 130%;
+  right: 0;
+
+  background: rgba(10, 10, 10, 0.95);
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  padding: 0.5rem;
+  min-width: 160px;
+
+  z-index: 9999;
+
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(10px);
+}
+
+.profile-dropdown-item {
+  width: 100%;
+  padding: 0.7rem 1rem;
+  background: transparent;
+  border: none;
+  text-align: left;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.profile-dropdown-item:hover {
+  background: var(--glass-highlight);
+  color: var(--text-primary);
+}
+
+.profile-dropdown-item.logout:hover {
+  color: #ff6b6b;
+}
+
