@@ -20,3 +20,9 @@ export const getTopSongs = async () => {
   const res = await api.get('/api/analytics/top-songs');
   return res.data;
 };
+
+export const semanticSearch = async (query) => {
+  const res = await api.post("/api/search", { query });
+  return res.data;
+};
+

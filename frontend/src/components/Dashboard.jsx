@@ -1,9 +1,10 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import useDashboardData from '../hooks/useDashboardData';
 
+import useDashboardData from '../hooks/useDashboardData';
 import HeroSection from './HeroSection';
 import TiltCard from './TiltCard';
+import Searchbar from './Searchbar';
 
 import friendsBg from '../assets/card_friends_bg_final.png';
 import recsBg from '../assets/card_recs_bg.png';
@@ -112,7 +113,13 @@ const Dashboard = () => {
         </div>
       </nav>
 
+      {/* Hero */}
       <HeroSection />
+
+      {/* 🔍 SEARCH BAR (STEP 0 COMPLETE) */}
+      <div style={{ margin: '2rem auto', maxWidth: '880px' }}>
+        <Searchbar />
+      </div>
 
       <main className="dashboard-grid">
 
