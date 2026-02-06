@@ -259,18 +259,6 @@ app.post('/api/search', checkAuth, async (req, res) => {
 app.get('/health', (req, res) => {
   res.json({ status: 'ok' });
 });
-// ---------------- ROOT ----------------
-app.get('/', (req, res) => {
-  res.json({
-    service: 'MusicMind Backend API',
-    status: 'running',
-    endpoints: {
-      search: 'POST /api/search',
-      health: 'GET /health'
-    }
-  });
-});
-
 
 // ---------------- START ----------------
 app.listen(PORT, () => {
