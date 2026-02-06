@@ -2,16 +2,25 @@ from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 import json
 
-model = SentenceTransformer("all-MiniLM-L6-v2")
+_model = None
+songs = None
+song_embeddings = None
 
-with open("songs.json", "r") as f:
-    songs = json.load(f)
+def load_resources():
+    global _model, songs, song_embeddings
+    if _model is None:
+        _model = SentenceTransformer("all-MiniLM-L6-v2")
 
-song_texts = [song["description"] for song in songs]
-song_embeddings = model.encode(song_texts)
+        with open("songs.json", "r") as f:
+            songs = json.load(f)
+
+        song_texts = [song["description"] for song in songs]
+        song_embeddings = _model.encode(song_texts)
 
 def search_songs(query, top_k=5):
-    query_embedding = model.encode([query])
+    load_resources()
+
+    query_embedding = _model.encode([query])
     similarities = cosine_similarity(query_embedding, song_embeddings)[0]
 
     ranked = sorted(
