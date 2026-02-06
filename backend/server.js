@@ -19,6 +19,9 @@ const swaggerSpecs = require('./config/swagger');
 const app = express();
 const PORT = process.env.PORT || 8888;
 
+// 🔴 IMPORTANT: ML SERVICE URL (FROM ENV)
+const ML_SERVICE_URL = process.env.ML_SERVICE_URL;
+
 // ---------------- ENV ----------------
 const CLIENT_ID = (process.env.CLIENT_ID || process.env.SPOTIFY_CLIENT_ID || '').trim();
 const CLIENT_SECRET = (process.env.CLIENT_SECRET || process.env.SPOTIFY_CLIENT_SECRET || '').trim();
@@ -167,8 +170,6 @@ app.get('/logout', (req, res) => {
   res.redirect(frontendUrl);
 });
 
-app.get('/auth/logout', (req, res) => res.redirect('/logout'));
-
 // ---------------- 🔍 SEARCH (ML + SPOTIFY) ----------------
 app.post('/api/search', checkAuth, async (req, res) => {
   const query = req.body?.query;
@@ -181,14 +182,21 @@ app.post('/api/search', checkAuth, async (req, res) => {
   let mlResults = [];
   let spotifyResults = [];
 
-  // ML Service
+  // 🔴 ML SERVICE (FIXED)
   try {
-    const mlRes = await axios.post('http://127.0.0.1:8001/search', {
-      query: cleanQuery
-    });
+    if (!ML_SERVICE_URL) {
+      throw new Error('ML_SERVICE_URL not set');
+    }
+
+    const mlRes = await axios.post(
+      `${ML_SERVICE_URL}/search`,
+      { query: cleanQuery },
+      { timeout: 10000 }
+    );
+
     mlResults = mlRes.data.results || [];
   } catch (e) {
-    console.warn('ML service unavailable');
+    console.warn('⚠️ ML service unavailable:', e.message);
   }
 
   // Spotify Search
@@ -198,9 +206,10 @@ app.post('/api/search', checkAuth, async (req, res) => {
       req.session.access_token
     );
   } catch (e) {
-    console.warn('Spotify search failed');
+    console.warn('⚠️ Spotify search failed');
   }
 
+  // Sort ML results
   mlResults.sort((a, b) => b.score - a.score);
 
   const featuredMl = mlResults[0] || null;
@@ -244,86 +253,6 @@ app.post('/api/search', checkAuth, async (req, res) => {
     results,
     spotifyFallback
   });
-});
-
-// ---------------- USER PROFILE ----------------
-app.get('/api/user/profile', checkAuth, async (req, res) => {
-  const meRes = await axios.get('https://api.spotify.com/v1/me', {
-    headers: { Authorization: `Bearer ${req.session.access_token}` }
-  });
-
-  const cacheKey = `profile:user:${meRes.data.id}`;
-  const cached = await cache.get(cacheKey);
-  if (cached) return res.json(cached);
-
-  await cache.set(cacheKey, meRes.data, 1800);
-  res.json(meRes.data);
-});
-
-// ---------------- ANALYTICS ----------------
-app.get('/api/analytics/dashboard', checkAuth, async (req, res) => {
-  try {
-    const headers = { Authorization: `Bearer ${req.session.access_token}` };
-    const meRes = await axios.get('https://api.spotify.com/v1/me', { headers });
-
-    const userId = meRes.data.id;
-    const cacheKey = `dashboard:user:${userId}`;
-
-    const cached = await cache.get(cacheKey);
-    if (cached) return res.json(cached);
-
-    const [artistsRes, tracksRes] = await Promise.all([
-      axios.get('https://api.spotify.com/v1/me/top/artists?limit=50&time_range=long_term', { headers }),
-      axios.get('https://api.spotify.com/v1/me/top/tracks?limit=50&time_range=short_term', { headers })
-    ]);
-
-    const topGenres = analyticsAlgo.getTopGenres(artistsRes.data.items);
-
-    let moodScore = 50;
-    try {
-      const trackIds = tracksRes.data.items.map(t => t.id).join(',');
-      const audioRes = await axios.get(
-        `https://api.spotify.com/v1/audio-features?ids=${trackIds}`,
-        { headers }
-      );
-      moodScore = analyticsAlgo.calculateMoodScore(audioRes.data.audio_features);
-    } catch {}
-
-    const analyticsData = {
-      topGenres,
-      moodScore,
-      topTracks: tracksRes.data.items.slice(0, 5).map(t => ({
-        name: t.name,
-        artist: t.artists[0].name,
-        image: t.album.images[0]?.url,
-        preview: t.preview_url
-      })),
-      generatedAt: new Date().toISOString()
-    };
-
-    await analyticsService.saveAnalytics(userId, analyticsData);
-    await cache.set(cacheKey, analyticsData, 600);
-
-    res.json(analyticsData);
-  } catch {
-    res.status(500).json({ error: 'Failed to generate analytics' });
-  }
-});
-
-// ---------------- RECOMMENDATIONS ----------------
-app.post('/api/recommend/generate', checkAuth, async (req, res) => {
-  const meRes = await axios.get('https://api.spotify.com/v1/me', {
-    headers: { Authorization: `Bearer ${req.session.access_token}` }
-  });
-  res.json(await recommendationService.generateRecommendations(meRes.data.id));
-});
-
-// ---------------- FRIENDS ----------------
-app.get('/friends/search', checkAuth, async (req, res) => {
-  const me = await axios.get('https://api.spotify.com/v1/me', {
-    headers: { Authorization: `Bearer ${req.session.access_token}` }
-  });
-  res.json(await friendService.searchUsers(req.query.q, me.data.id));
 });
 
 // ---------------- HEALTH ----------------
