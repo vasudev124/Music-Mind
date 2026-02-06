@@ -154,4 +154,4 @@ Contributions welcome. Typical workflow:
 Please follow existing code style and update docs in `/docs` when changing API contracts.
 
 ## License
-[Add license details here — e.g., MIT License]
+

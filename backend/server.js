@@ -181,15 +181,23 @@ app.post('/api/search', checkAuth, async (req, res) => {
   let mlResults = [];
   let spotifyResults = [];
 
-  // ML Service
-  try {
-    const mlRes = await axios.post('http://127.0.0.1:8001/search', {
-      query: cleanQuery
-    });
-    mlResults = mlRes.data.results || [];
-  } catch (e) {
-    console.warn('ML service unavailable');
+ // ML Service
+try {
+  if (!process.env.ML_SERVICE_URL) {
+    throw new Error('ML_SERVICE_URL not set');
   }
+
+  const mlRes = await axios.post(
+    `${process.env.ML_SERVICE_URL}/search`,
+    { query: cleanQuery },
+    { timeout: 10000 }
+  );
+
+  mlResults = mlRes.data.results || [];
+} catch (e) {
+  console.warn('ML service unavailable:', e.message);
+}
+
 
   // Spotify Search
   try {
@@ -329,6 +337,13 @@ app.get('/friends/search', checkAuth, async (req, res) => {
 // ---------------- HEALTH ----------------
 app.get('/health', (req, res) => {
   res.json({ status: 'ok' });
+});
+// ---------------- ROOT ----------------
+app.get('/', (req, res) => {
+  res.json({
+    service: 'MusicMind Backend API',
+    status: 'running'
+  });
 });
 
 // ---------------- START ----------------

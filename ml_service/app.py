@@ -7,6 +7,10 @@ app = FastAPI()
 class SearchRequest(BaseModel):
     query: str
 
+@app.get("/health")
+def health():
+    return {"status": "ok"}
+
 @app.post("/search")
 def search(req: SearchRequest):
     return {
