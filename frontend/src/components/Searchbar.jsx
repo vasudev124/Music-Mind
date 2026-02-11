@@ -14,7 +14,7 @@ const Searchbar = () => {
     setLoading(true);
     try {
       const data = await semanticSearch(query);
-      setSearchData(data); // store backend response
+      setSearchData(data);
     } catch (err) {
       console.error("Search failed", err);
     } finally {
@@ -23,8 +23,15 @@ const Searchbar = () => {
   };
 
   return (
-    <div style={{ width: "100%", maxWidth: "600px", margin: "0 auto" }}>
-      
+    <div
+      style={{
+        width: "100%",
+        maxWidth: "600px",
+        margin: "0 auto",
+        position: "relative",   // ✅ critical
+        zIndex: 20,             // ✅ sits above vinyl & bg
+      }}
+    >
       {/* Search Input */}
       <form onSubmit={handleSearch}>
         <input
@@ -34,25 +41,33 @@ const Searchbar = () => {
           onChange={(e) => setQuery(e.target.value)}
           style={{
             width: "100%",
-            padding: "12px 16px",
-            borderRadius: "12px",
-            border: "1px solid #333",
-            background: "#0b0b0b",
-            color: "white",
-            fontSize: "1rem"
+            padding: "14px 18px",
+            borderRadius: "14px",
+            border: "1px solid rgba(255,255,255,0.15)",
+            background: "rgba(10,10,10,0.9)",
+            color: "#fff",
+            fontSize: "1rem",
+            outline: "none",
+            backdropFilter: "blur(6px)",
           }}
         />
       </form>
 
       {/* Loading */}
       {loading && (
-        <p style={{ marginTop: "1rem", opacity: 0.7 }}>
-          Searching...
+        <p
+          style={{
+            marginTop: "0.75rem",
+            fontSize: "0.9rem",
+            opacity: 0.7,
+          }}
+        >
+          Searching…
         </p>
       )}
 
       {/* Results */}
-      <SearchResults data={searchData} />
+      {searchData && <SearchResults data={searchData} />}
     </div>
   );
 };

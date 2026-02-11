@@ -1,16 +1,14 @@
 .dashboard-container {
     padding-top: 0;
-    /* Removed fixed padding, HeroSection handles top space */
     min-height: 100vh;
-    /* Ensure parent allows scrolling for sticky to work if needed, 
-     but usually body scroll is enough. */
     padding-bottom: 60vh;
-    /* Extra space to allow the last card to scroll to the top sticky position */
 }
 
 .dashboard-container.visible {
     opacity: 1;
 }
+
+/* ================= NAVBAR ================= */
 
 .navbar {
     position: absolute;
@@ -20,24 +18,31 @@
     width: 90%;
     max-width: 1200px;
     height: 60px;
+
     display: flex;
     align-items: center;
     justify-content: space-between;
+
     padding: 0 2rem;
     z-index: 1000;
-    /* Transparent background per request */
+
     background: transparent;
-    backdrop-filter: none;
     border: none;
 }
 
-.nav-links {
-    display: flex;
-    gap: 3rem;
-    /* Increased gap to separate words clearly */
-    align-items: center;
+.logo {
+    font-weight: 800;
+    letter-spacing: -0.5px;
 }
 
+/* Right-side nav group */
+.nav-links {
+    display: flex;
+    align-items: center;
+    gap: 3rem;
+}
+
+/* Nav items */
 .nav-item {
     cursor: pointer;
     font-size: 1rem;
@@ -46,465 +51,161 @@
     transition: color 0.3s ease;
     position: relative;
     text-transform: capitalize;
-    /* Ensure they look like headings/names */
 }
 
 .nav-item:hover {
     color: var(--text-primary);
 }
 
-.nav-item.active {
-    color: var(--accent-color);
-    /* Spotify Green */
+/* ================= INLINE SEARCH ================= */
+
+/*
+  IMPORTANT:
+  - search expands LEFT into free space
+  - friends / recs / profile never move
+*/
+.nav-search {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+
+    width: 40px;               /* icon-only width */
+    max-width: 360px;
+    overflow: hidden;
+
+    transition: width 240ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
-/* Dash underline for active item */
-.nav-item.active::after {
-    content: '';
-    position: absolute;
-    bottom: -6px;
-    left: 0;
-    width: 100%;
-    height: 2px;
-    background-color: var(--accent-color);
-    box-shadow: 0 0 10px var(--accent-glow);
-    border-radius: 2px;
+.nav-search.open {
+    width: 360px;
 }
+
+/* Search icon */
+.search-icon {
+    background: none;
+    border: none;
+    font-size: 1.1rem;
+    cursor: pointer;
+    color: var(--text-secondary);
+    padding: 0;
+    line-height: 1;
+}
+
+.search-icon:hover {
+    color: var(--text-primary);
+}
+
+/* Expanding input container */
+.search-expand {
+    flex: 1;
+    opacity: 0;
+    transform: translateX(-6px);
+    transition: opacity 200ms ease, transform 200ms ease;
+}
+
+.nav-search.open .search-expand {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+/* ================= PROFILE DROPDOWN ================= */
+
+.profile-trigger {
+    position: relative;
+}
+
+.profile-dropdown {
+    position: absolute;
+    top: 130%;
+    right: 0;
+
+    background: rgba(10, 10, 10, 0.95);
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    padding: 0.5rem;
+    min-width: 160px;
+
+    z-index: 9999;
+
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(10px);
+}
+
+.profile-dropdown-item {
+    width: 100%;
+    padding: 0.7rem 1rem;
+    background: transparent;
+    border: none;
+    text-align: left;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.profile-dropdown-item:hover {
+    background: var(--glass-highlight);
+    color: var(--text-primary);
+}
+
+.profile-dropdown-item.logout:hover {
+    color: #ff6b6b;
+}
+
+/* ================= DASHBOARD GRID ================= */
 
 .dashboard-grid {
     position: relative;
     z-index: 2;
-    /* Ensure content sits above the new Z-0 background */
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 0;
-    /* Removed gap for tight stacking */
     max-width: 900px;
     margin: 0 auto;
     padding: 0 2rem;
 }
 
-/* Stacking Cards */
+/* Cards */
 .section-card {
     width: 880px;
     height: 404px;
     background: #050505;
     border: 1px solid var(--glass-border);
-    box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.5);
     margin-bottom: 2rem;
-    /* Reduced from 7rem to small breathing room */
-    overflow: hidden;
+
     display: flex;
     flex-direction: column;
-}
+    overflow: hidden;
 
-/* Specific Stacking Offsets */
-/* We will handle 'top' in inline styles or nth-child for the stacking staggered effect */
-
-.back-btn {
-    color: var(--text-secondary);
-    font-weight: 600;
-    transition: color 0.2s;
-}
-
-.back-btn:hover {
-    color: var(--text-primary);
-}
-
-.explore-btn {
-    margin-top: auto;
-    /* Push to bottom */
-    align-self: center;
-    padding: 0.8rem 2rem;
-    background: var(--glass-highlight);
-    border: 1px solid var(--glass-border);
-    color: var(--accent-color);
-    border-radius: 30px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    font-size: 0.8rem;
-}
-
-.explore-btn:hover {
-    background: var(--accent-color);
-    color: #000;
-    box-shadow: 0 0 20px var(--accent-glow);
-}
-
-.section-card h3 {
-    margin-bottom: 2rem;
-    color: var(--text-secondary);
-    font-size: 1.1rem;
-    text-transform: uppercase;
-    letter-spacing: 2px;
-    text-align: center;
-    position: relative;
-    /* Ensure text is above bg */
-    z-index: 2;
-}
-
-/* Background Image for Insights Card */
-.insights-card {
-    position: relative;
-    background: #050505;
-    /* Fallback */
-}
-
-.insights-card::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-image: url('../assets/insights-bg.png');
-    background-size: cover;
-    background-position: center;
-    opacity: 0.75;
-    /* 70-80% opacity */
-    z-index: 0;
-    mix-blend-mode: luminosity;
-    /* Keeps it subtle/monochrome */
-}
-
-.insights-card::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.4);
-    /* 10-40% Dark overlay for text contrast */
-    z-index: 1;
-    pointer-events: none;
-}
-
-/* Ensure content sits above overlay */
-.insights-card>*,
-.friends-card>* {
-    position: relative;
-    z-index: 2;
-}
-
-/* Background Image for Friends Card */
-.friends-card {
-    position: relative;
-    background: #050505;
-}
-
-/* Recommendations Card - Pure Image with Solid Backing */
-.dashboard-grid .section-wrapper .section-card.recs-section {
-    position: relative;
-    background: #050505 !important;
-    /* Solid backing */
-    backdrop-filter: none !important;
-    border: none !important;
-    box-shadow: none !important;
-    z-index: 10;
-    /* Ensure it respects Z-stack */
-}
-
-.friends-card::before,
-.recs-section::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-size: cover;
-    background-position: center;
-    opacity: 0.75;
-    z-index: 0;
-    mix-blend-mode: luminosity;
-}
-
-.friends-card::before {
-    background-image: var(--friends-bg);
-}
-
-.recs-section::before {
-    background-image: var(--recs-bg);
-}
-
-.friends-card::after,
-.recs-section::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.4);
-    /* Dark overlay */
-    z-index: 1;
-    pointer-events: none;
-}
-
-/* Entrance Animation Wrapper */
-.entrance-animator {
-    opacity: 0.9;
-    transform: translateY(8px);
-    transition: opacity 0.4s ease-out, transform 0.4s ease-out;
-    width: 100%;
-    height: 100%;
-}
-
-.entrance-animator.is-visible {
-    opacity: 1;
-    transform: translateY(0);
-}
-
-/* Card Background Handling */
-.section-card {
-    position: relative;
-    /* Interaction Transitions */
     transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1),
-        box-shadow 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+                box-shadow 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 .section-card:hover {
-    transform: translateY(-2px) !important;
-    /* Lift -2px */
+    transform: translateY(-2px);
     box-shadow: 0 15px 35px rgba(0, 0, 0, 0.3);
-    /* Deepen Shadow */
 }
 
-.section-card:active {
-    transform: translateY(-1px) !important;
-    /* Depress +1px from hover (effectively -1px from base) */
-    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.4);
-    /* Tighten Shadow */
-    transition: transform 0.1s ease, box-shadow 0.1s ease;
-    /* Fast 80-100ms */
-}
+/* ================= BACKGROUND LAYERS ================= */
 
-/* Opacity Logic for Face Cards */
-.friends-card::before,
-.recs-section::before {
-    opacity: 0.6 !important;
-    /* Default 0.55-0.6 */
-    transition: opacity 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
-}
-
-.friends-card:hover::before,
-.recs-section:hover::before {
-    opacity: 0.7 !important;
-    /* Hover 0.65-0.7 */
-}
-
-.section-card:active .friends-card::before,
-.section-card:active .recs-section::before {
-    opacity: 0.75 !important;
-}
-
-.card-bg-layer {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-size: cover;
-    background-position: center;
-    background-repeat: no-repeat;
-    z-index: 0;
-    mix-blend-mode: luminosity;
-    /* Grayscale blend for grunge feel */
-    filter: contrast(1.2) brightness(0.8);
-}
-
-.card-content-relative {
-    position: relative;
-    z-index: 2;
-    width: 100%;
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-}
-
-/* Stuck State Visuals */
-.is-stuck .section-card {
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-    /* Reduced shadow prevents heavy stack */
-    transition: box-shadow 0.3s ease;
-}
-
-.is-stuck .friends-card::before,
-.is-stuck .recs-section::before,
-.is-stuck .card-bg-layer {
-    opacity: 0.45 !important;
-    /* Lower opacity a bit (from 0.6) */
-}
-
-/* Ensure hover still works/overrides if needed, OR sticky overrides hover? 
-   User said "When sticky... reduce shadow". 
-   If user hovers a stuck card, it should probably regain prominence?
-   Let's allow hover to override.
-*/
-.is-stuck .section-card:hover {
-    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.3);
-    /* Restore hover shadow */
-}
-
-.is-stuck .section-card:hover .friends-card::before,
-.is-stuck .section-card:hover .recs-section::before {
-    opacity: 0.7 !important;
-    /* Restore opacity */
-}
-
-/* Stack Depth Hierarchy */
-/* Depth 0 (Top Card) - Strongest/Full */
-.section-wrapper[data-stack-depth="0"] .section-card {
-    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.3);
-    filter: contrast(1);
-    transition: all 0.3s ease;
-}
-
-/* Depth 1 (2nd Card) - -5% */
-.section-wrapper[data-stack-depth="1"] .section-card {
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
-    filter: contrast(0.95) brightness(0.95);
-}
-
-/* Depth 2 (3rd Card) - -10% */
-.section-wrapper[data-stack-depth="2"] .section-card {
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-    filter: contrast(0.9) brightness(0.9);
-}
-
-/* Depth 3+ (4th+) - -15% */
-.section-wrapper[data-stack-depth="3"] .section-card {
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-    filter: contrast(0.85) brightness(0.85);
-}
-
-/* Poster Slogan Typography */
-.poster-slogan {
-    position: absolute;
-    top: 10%;
-    right: 5%;
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    line-height: 0.85;
-    pointer-events: none;
-    opacity: 0.8;
-}
-
-.poster-slogan span {
-    font-family: 'Inter', sans-serif;
-    /* Or a bolder display font if available */
-    font-weight: 900;
-    font-size: 3.5rem;
-    color: rgba(255, 255, 255, 0.15);
-    /* Subtle watermark style */
-    text-transform: uppercase;
-    letter-spacing: -2px;
-}
-
-/* Internal Layouts (Grid inside cards if needed) */
-.song-list {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-    gap: 1rem;
-}
-
-.song-item {
-    background: var(--bg-secondary);
-    border-radius: 8px;
-    border: 1px solid var(--glass-border);
-}
-
-.genre-bars {
-    display: flex;
-    flex-direction: column;
-    gap: 1.5rem;
-}
-
-.friends-list {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 2rem;
-}
-
-.recs-list {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 1rem;
-}
-
-.rec-item {
-    background: var(--bg-secondary);
-    padding: 1rem;
-    border-radius: 12px;
-}
-
-/* Dashboard Specific Background */
 .dashboard-background-layer {
     position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
+    inset: 0;
     z-index: 0;
-    /* Changed from -1 to 0 to sit ABOVE the body background */
     overflow: hidden;
     background: linear-gradient(135deg, #020205 0%, #150a25 100%);
-    /* Default: Deep Purple */
-    transition: background 1.5s cubic-bezier(0.25, 0.1, 0.25, 1);
-    /* ultra smooth transition */
 }
-
-/* Dynamic Scroll Variants */
-/* Dynamic Scroll Variants REMOVED per user request */
-/* Background remains constant (defined in .dashboard-background-layer) */
 
 .dashboard-noise {
     position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
+    inset: 0;
     background-image: url('../assets/noise_texture.png');
     opacity: 0.07;
     mix-blend-mode: overlay;
     pointer-events: none;
 }
 
-.dashboard-vinyl-bg {
-    position: absolute;
-    top: -15%;
-    right: -15%;
-    width: 70vw;
-    height: auto;
-    opacity: 0.4;
-    /* Increased from 0.15 */
-    filter: blur(40px);
-    /* Slightly sharper */
-    transform: rotate(20deg);
-    pointer-events: none;
-    /* mix-blend-mode: screen; REMOVED to ensure visibility on dark background */
-    animation: vinyl-pulse 8s ease-in-out infinite alternate;
-}
-
-@keyframes vinyl-pulse {
-    from {
-        transform: rotate(20deg) scale(1);
-        opacity: 0.4;
-    }
-
-    to {
-        transform: rotate(25deg) scale(1.05);
-        opacity: 0.5;
-    }
-}
-
-/* Floating Orbs */
+/* Floating orbs */
 .dashboard-orb {
     position: absolute;
     border-radius: 50%;
@@ -521,7 +222,6 @@
     top: 20%;
     left: 10%;
     background: radial-gradient(circle, rgba(138, 43, 226, 0.2), transparent);
-    animation-duration: 25s;
 }
 
 .orb-2 {
@@ -530,8 +230,6 @@
     bottom: 10%;
     left: 30%;
     background: radial-gradient(circle, rgba(29, 185, 84, 0.15), transparent);
-    animation-duration: 30s;
-    animation-delay: -5s;
 }
 
 .orb-3 {
@@ -540,74 +238,11 @@
     top: 50%;
     right: 20%;
     background: radial-gradient(circle, rgba(65, 105, 225, 0.15), transparent);
-    animation-duration: 35s;
-    animation-delay: -10s;
 }
 
 @keyframes float-orb {
-    0% {
-        transform: translate(0, 0) scale(1);
-    }
-
-    33% {
-        transform: translate(50px, -50px) scale(1.1);
-    }
-
-    66% {
-        transform: translate(-30px, 20px) scale(0.9);
-    }
-
-    100% {
-        transform: translate(20px, 40px) scale(1.05);
-    }
+    0% { transform: translate(0, 0) scale(1); }
+    33% { transform: translate(50px, -50px) scale(1.1); }
+    66% { transform: translate(-30px, 20px) scale(0.9); }
+    100% { transform: translate(20px, 40px) scale(1.05); }
 }
-@keyframes skeleton {
-  0% {
-    background-position: 100% 50%;
-  }
-  100% {
-    background-position: 0 50%;
-  }
-}
-.profile-trigger {
-  position: relative;
-}
-
-.profile-dropdown {
-  position: absolute;
-  top: 130%;
-  right: 0;
-
-  background: rgba(10, 10, 10, 0.95);
-  border: 1px solid var(--glass-border);
-  border-radius: 12px;
-  padding: 0.5rem;
-  min-width: 160px;
-
-  z-index: 9999;
-
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(10px);
-}
-
-.profile-dropdown-item {
-  width: 100%;
-  padding: 0.7rem 1rem;
-  background: transparent;
-  border: none;
-  text-align: left;
-  color: var(--text-secondary);
-  font-size: 0.9rem;
-  border-radius: 8px;
-  cursor: pointer;
-}
-
-.profile-dropdown-item:hover {
-  background: var(--glass-highlight);
-  color: var(--text-primary);
-}
-
-.profile-dropdown-item.logout:hover {
-  color: #ff6b6b;
-}
-

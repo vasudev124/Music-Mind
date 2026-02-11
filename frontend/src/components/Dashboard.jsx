@@ -17,13 +17,13 @@ const Dashboard = () => {
   const [isVisible, setIsVisible] = useState(false);
   const [activeSection, setActiveSection] = useState(0);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
 
   const profileRef = useRef(null);
   const profileButtonRef = useRef(null);
 
   const { data: dashboardData, loading, error } = useDashboardData();
 
-  // Backend-aligned data
   const genres = dashboardData?.genres || [];
   const moodScore = dashboardData?.moodScore ?? null;
 
@@ -59,7 +59,6 @@ const Dashboard = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  /* -------------------- Loading / Error -------------------- */
   if (loading) {
     return <div className="dashboard-container visible">Loading dashboard...</div>;
   }
@@ -68,7 +67,6 @@ const Dashboard = () => {
     return <div className="dashboard-container visible">{error}</div>;
   }
 
-  /* -------------------- Render -------------------- */
   return (
     <div className={`dashboard-container ${isVisible ? 'visible' : ''}`}>
 
@@ -85,11 +83,28 @@ const Dashboard = () => {
         <h2 className="logo">MusicMind</h2>
 
         <div className="nav-links">
-          <span className="nav-item active">Dashboard</span>
+
+          {/* 🔍 Inline Expanding Search */}
+          <div
+            className={`nav-search ${isSearchOpen ? 'open' : ''}`}
+          >
+            <button
+              className="search-icon"
+              onClick={() => setIsSearchOpen(prev => !prev)}
+              aria-label="Search"
+            >
+              🔍
+            </button>
+
+            <div className="search-expand">
+              <Searchbar />
+            </div>
+          </div>
+
           <span className="nav-item">Friends</span>
           <span className="nav-item">Recommendations</span>
 
-          {/* Profile Trigger + Dropdown */}
+          {/* Profile */}
           <div
             ref={profileButtonRef}
             className="nav-item profile-trigger"
@@ -116,13 +131,7 @@ const Dashboard = () => {
       {/* Hero */}
       <HeroSection />
 
-      {/* 🔍 SEARCH BAR (STEP 0 COMPLETE) */}
-      <div style={{ margin: '2rem auto', maxWidth: '880px' }}>
-        <Searchbar />
-      </div>
-
       <main className="dashboard-grid">
-
         {/* -------- MUSIC INSIGHTS -------- */}
         <div className="section-wrapper" style={{ position: 'sticky', top: '120px', zIndex: 1, width: '884px' }}>
           <TiltCard className="glass-panel section-card insights-card">
@@ -196,7 +205,6 @@ const Dashboard = () => {
             </button>
           </TiltCard>
         </div>
-
       </main>
     </div>
   );
